@@ -13,8 +13,8 @@ from keras.preprocessing.sequence import pad_sequences
 
 from anago.utils import Vocabulary
 
-options_file = 'https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json'
-weight_file = 'https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'
+#options_file = 'https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_options.json'
+#weight_file = 'https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5'
 
 
 def normalize_number(text):
@@ -196,7 +196,7 @@ def pad_nested_sequences(sequences, dtype='int32'):
 
 class ELMoTransformer(IndexTransformer):
 
-    def __init__(self, lower=True, num_norm=True,
+    def __init__(self, options_file, weight_file,  lower=True, num_norm=True,
                  use_char=True, initial_vocab=None):
         super(ELMoTransformer, self).__init__(lower, num_norm, use_char, initial_vocab)
         self._elmo = Elmo(options_file, weight_file, 2, dropout=0)
