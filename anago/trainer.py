@@ -1,7 +1,7 @@
 """Training-related module.
 """
 from anago.callbacks import F1score
-from anago.utils import NERSequence
+from anago.utils import NERSequence, ClassifSequence
 
 
 class Trainer(object):
@@ -17,7 +17,7 @@ class Trainer(object):
         self._preprocessor = preprocessor
 
     def train(self, x_train, y_train, x_valid=None, y_valid=None,
-              epochs=1, batch_size=32, verbose=1, callbacks=None, shuffle=True):
+              epochs=1, batch_size=32, verbose=1, callbacks=None, shuffle=True, mode = 'NER'):
         """Trains the model for a fixed number of epochs (iterations on a dataset).
 
         Args:
@@ -36,11 +36,16 @@ class Trainer(object):
             shuffle: Boolean (whether to shuffle the training data
                 before each epoch). `shuffle` will default to True.
         """
+        
+        if (mode == 'NER'):
+            _fun = NERSequence
+        elif (mode == 'Classif'):
+            _fun = ClassifSequence
 
-        train_seq = NERSequence(x_train, y_train, batch_size, self._preprocessor.transform)
+        train_seq = _fun(x_train, y_train, batch_size, self._preprocessor.transform)
 
         if x_valid and y_valid:
-            valid_seq = NERSequence(x_valid, y_valid, batch_size, self._preprocessor.transform)
+            valid_seq = _fun(x_valid, y_valid, batch_size, self._preprocessor.transform)
             f1 = F1score(valid_seq, preprocessor=self._preprocessor)
             callbacks = [f1] + callbacks if callbacks else [f1]
 
@@ -49,3 +54,4 @@ class Trainer(object):
                                   callbacks=callbacks,
                                   verbose=verbose,
                                   shuffle=shuffle)
+

@@ -91,6 +91,25 @@ class NERSequence(Sequence):
 
     def __len__(self):
         return math.ceil(len(self.x) / self.batch_size)
+    
+class ClassifSequence(Sequence):
+
+    def __init__(self, x, y, batch_size=1, preprocess=None):
+        self.x = x
+        self.y = y
+        self.batch_size = batch_size
+        self.preprocess = preprocess
+
+    def __getitem__(self, idx):
+        batch_x = self.x[idx * self.batch_size: (idx + 1) * self.batch_size]
+        batch_y = []
+        for i in range(len(self.y)):
+            batch_y.append(self.y[i][idx * self.batch_size: (idx + 1) * self.batch_size])
+
+        return self.preprocess(batch_x), batch_y
+
+    def __len__(self):
+        return math.ceil(len(self.x) / self.batch_size)
 
 
 class Vocabulary(object):
