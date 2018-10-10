@@ -7,7 +7,7 @@ from collections import Counter
 
 import numpy as np
 from keras.utils import Sequence, get_file
-
+from anago.layers import CRF
 
 def download(url):
     """Download a trained weights, config and preprocessor.
@@ -282,3 +282,17 @@ def load_glove(file):
             model[word] = vector
 
     return model
+
+def create_custom_objects():
+    instanceHolder = {"instance": None}
+    class ClassWrapper(CRF):
+        def __init__(self, *args, **kwargs):
+            instanceHolder["instance"] = self
+            super(ClassWrapper, self).__init__(*args, **kwargs)
+    def loss(*args):
+        method = getattr(instanceHolder["instance"], "loss_function")
+        return method(*args)
+    def accuracy(*args):
+        method = getattr(instanceHolder["instance"], "accuracy")
+        return method(*args)
+    return {"ClassWrapper": ClassWrapper ,"CRF": ClassWrapper, "loss": loss, "accuracy":accuracy}
