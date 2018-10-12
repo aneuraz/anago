@@ -14,10 +14,11 @@ class Tagger(object):
         tokenizer: Tokenize input sentence. Default tokenizer is `str.split`.
     """
 
-    def __init__(self, model, preprocessor, tokenizer=str.split):
+    def __init__(self, model, preprocessor, tokenizer=str.split, mode = 'NER'):
         self.model = model
         self.preprocessor = preprocessor
         self.tokenizer = tokenizer
+        self.mode = mode
 
     def predict_proba(self, text):
         """Probability estimates.
@@ -37,19 +38,29 @@ class Tagger(object):
         words = self.tokenizer(text)
         X = self.preprocessor.transform([words])
         y = self.model.predict(X)
-        y = y[0]  # reduce batch dimension.
+        if self.mode == 'NER':
+            y = y[0]  # reduce batch dimension.
+        #else:
+        #    for i in range(len(y)):
+        #        y[i] = y[i][0]
 
         return y
 
     def _get_prob(self, pred):
-        prob = np.max(pred, -1)
+        if self.mode == 'NER':
+            prob = np.max(pred, -1)
+        else:
+            prob = [np.max(x,-1) for x in pred]
 
         return prob
 
     def _get_tags(self, pred):
-        tags = self.preprocessor.inverse_transform([pred])
-        tags = tags[0]  # reduce batch dimension
-
+        if self.mode == 'NER':
+            tags = self.preprocessor.inverse_transform([pred])
+            tags = tags[0]  # reduce batch dimension
+        elif self.mode == 'Classif':
+            tags = self.preprocessor.inverse_transform_class(pred)
+    
         return tags
 
     def _build_response(self, sent, tags, prob):
@@ -74,6 +85,22 @@ class Tagger(object):
             res['entities'].append(entity)
 
         return res
+    
+    def _build_response_class(self, sent, tags, prob):
+        words = self.tokenizer(sent)
+        res = {
+            'words':words,
+            'categories':[]
+        }
+        
+        for i in range(len(tags)):
+            category = {
+                'type': tags[i][0],
+                'score': prob[i][0]
+            }
+            res['categories'].append(category)
+        return res
+            
 
     def analyze(self, text):
         """Analyze text and return pretty format.
@@ -119,7 +146,10 @@ class Tagger(object):
         pred = self.predict_proba(text)
         tags = self._get_tags(pred)
         prob = self._get_prob(pred)
-        res = self._build_response(text, tags, prob)
+        if self.mode =='NER':
+            res = self._build_response(text, tags, prob)
+        else: 
+            res = self._build_response_class(text,tags,prob)
 
         return res
 

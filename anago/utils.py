@@ -106,7 +106,7 @@ class ClassifSequence(Sequence):
         for i in range(len(self.y)):
             batch_y.append(self.y[i][idx * self.batch_size: (idx + 1) * self.batch_size])
 
-        return self.preprocess(batch_x), batch_y
+        return self.preprocess(batch_x,None, batch_y)
 
     def __len__(self):
         return math.ceil(len(self.x) / self.batch_size)

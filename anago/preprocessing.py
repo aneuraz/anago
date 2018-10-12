@@ -47,12 +47,13 @@ class IndexTransformer(BaseEstimator, TransformerMixin):
         self._word_vocab = Vocabulary(lower=lower)
         self._char_vocab = Vocabulary(lower=False)
         self._label_vocab = Vocabulary(lower=False, unk_token=False)
+        self._label_class_vocab = []
 
         if initial_vocab:
             self._word_vocab.add_documents([initial_vocab])
             self._char_vocab.add_documents(initial_vocab)
 
-    def fit(self, X, y):
+    def fit(self, X, y, y_class = None):
         """Learn vocabulary from training set.
 
         Args:
@@ -66,6 +67,14 @@ class IndexTransformer(BaseEstimator, TransformerMixin):
         if self._use_char:
             for doc in X:
                 self._char_vocab.add_documents(doc)
+                
+        if y_class is not None: 
+            for cat in y_class:
+                cat_vocab = Vocabulary(lower=False, unk_token='UNK')
+                cat_vocab.add_documents(cat)
+                cat_vocab.build()
+                print(cat_vocab.vocab)
+                self._label_class_vocab.append(cat_vocab)
 
         self._word_vocab.build()
         self._char_vocab.build()
@@ -73,7 +82,7 @@ class IndexTransformer(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X, y=None, y_class=None):
         """Transform documents to document ids.
 
         Uses the vocabulary learned by fit.
@@ -96,7 +105,8 @@ class IndexTransformer(BaseEstimator, TransformerMixin):
             features = [word_ids, char_ids]
         else:
             features = word_ids
-
+        
+            
         if y is not None:
             y = [self._label_vocab.doc2id(doc) for doc in y]
             y = pad_sequences(y, padding='post')
@@ -108,7 +118,25 @@ class IndexTransformer(BaseEstimator, TransformerMixin):
             # (1, 4)
             # So, I expand dimensions when len(y.shape) == 2.
             y = y if len(y.shape) == 3 else np.expand_dims(y, axis=0)
+        else: 
+            y = None
+            
+        if y_class is not None: 
+            res = []
+            for i in range(len(y_class)):
+                cat = [self._label_class_vocab[i].doc2id(doc) for doc in y_class[i]]
+                cat = to_categorical(cat, self.label_class_size[i]).astype(int)
+                #cat = cat if len(cat.shape) == 3 else np.expand_dims(cat, axis=0)
+                res.append(cat)
+        else:
+            res = None
+                
+        if y is not None and res is not None:
+            return features, y, res
+        elif y is not None and res is None:
             return features, y
+        elif y is None and res is not None:
+            return features, res
         else:
             return features
 
@@ -143,6 +171,27 @@ class IndexTransformer(BaseEstimator, TransformerMixin):
             inverse_y = [iy[:l] for iy, l in zip(inverse_y, lengths)]
 
         return inverse_y
+    
+    def inverse_transform_class(self, y_class, lengths=None):
+        """Return label strings.
+
+        Args:
+            y: label id matrix.
+            lengths: sentences length.
+
+        Returns:
+            list: list of list of strings.
+        """
+        res = []
+        for i in range(len(y_class)):
+            y = np.argmax(y_class[i], -1)
+            #inverse_y = [self._label_class_vocab[i].id2doc(ids) for ids in y]
+            inverse_y = self._label_class_vocab[i].id2doc(y)
+            if lengths is not None:
+                inverse_y = [iy[:l] for iy, l in zip(inverse_y, lengths)]
+            res.append(inverse_y)
+
+        return res
 
     @property
     def word_vocab_size(self):
@@ -155,6 +204,13 @@ class IndexTransformer(BaseEstimator, TransformerMixin):
     @property
     def label_size(self):
         return len(self._label_vocab)
+    
+    @property
+    def label_class_size(self):
+        res = []
+        for cat in self._label_class_vocab:
+            res.append(len(cat))
+        return res
 
     def save(self, file_path):
         joblib.dump(self, file_path)
@@ -201,7 +257,7 @@ class ELMoTransformer(IndexTransformer):
         super(ELMoTransformer, self).__init__(lower, num_norm, use_char, initial_vocab)
         self._elmo = Elmo(options_file, weight_file, 2, dropout=0)
 
-    def transform(self, X, y=None):
+    def transform(self, X, y=None, y_class=None):
         """Transform documents to document ids.
 
         Uses the vocabulary learned by fit.
@@ -238,6 +294,24 @@ class ELMoTransformer(IndexTransformer):
             # (1, 4)
             # So, I expand dimensions when len(y.shape) == 2.
             y = y if len(y.shape) == 3 else np.expand_dims(y, axis=0)
+        else: 
+            y = None
+            
+        if y_class is not None: 
+            res = []
+            for i in range(len(y_class)):
+                cat = [self._label_class_vocab[i].doc2id(doc) for doc in y_class[i]]
+                cat = to_categorical(cat, self.label_class_size[i]).astype(int)
+                #cat = cat if len(cat.shape) == 3 else np.expand_dims(cat, axis=0)
+                res.append(cat)
+        else:
+            res = None
+                
+        if y is not None and res is not None:
+            return features, y, res
+        elif y is not None and res is None:
             return features, y
+        elif y is None and res is not None:
+            return features, res
         else:
             return features
